@@ -12,7 +12,9 @@ Knowledge Discovery and Data Mining (KDD), 2016
 import argparse
 import numpy as np
 import networkx as nx
+import pickle as pkl
 import node2vec
+import os
 from gensim.models import Word2Vec
 
 def parse_args():
@@ -22,6 +24,8 @@ def parse_args():
 	parser = argparse.ArgumentParser(description="Run node2vec.")
 
 	parser.add_argument('--input', nargs='?', default='graph/karate.edgelist',
+	                    help='Input graph path')
+	parser.add_argument('--inputMulti', nargs='?', default='graph/AS_Sampled_ugraph.pkl',
 	                    help='Input graph path')
 
 	parser.add_argument('--output', nargs='?', default='emb/karate.emb',
@@ -79,15 +83,31 @@ def read_graph():
 
 	return G
 
+def read_graphs(path):
+	if os.path.exists(path):
+		allGraphs = pkl.load(open(path,'rb'))
+	else: 
+		print "File not found"
+		exit()
+
+
 def learn_embeddings(walks):
 	'''
 	Learn embeddings by optimizing the Skipgram objective using SGD.
 	'''
 	walks = [map(str, walk) for walk in walks]
 	model = Word2Vec(walks, size=args.dimensions, window=args.window_size, min_count=0, sg=1, workers=args.workers, iter=args.iter)
-	# model.save_word2vec_format(args.output)
 	model.wv.save_word2vec_format(args.output)
 	
+	return
+
+def learn_multiple_embeddings(walks,key):
+	'''
+	Learn embeddings by optimizing the Skipgram objective using SGD.
+	'''
+	walks = [map(str, walk) for walk in walks]
+	model = Word2Vec(walks, size=args.dimensions, window=args.window_size, min_count=0, sg=1, workers=args.workers, iter=args.iter)
+	model.wv.save_word2vec_format("emb/"+key+".emb")
 	return
 
 def main(args):
@@ -100,6 +120,25 @@ def main(args):
 	walks = G.simulate_walks(args.num_walks, args.walk_length)
 	learn_embeddings(walks)
 
+def main_listofGraphs(args):
+	'''
+	Pipeline for representational learning for all nodes in a graph.
+	'''
+	graphPaths = args.inputMulti
+	nx_GraphList = read_graphs(graphPaths)
+	for k in nx_GraphList:
+		nx_G = nx_GraphList[k]
+		G = node2vec.Graph(nx_G, args.directed, args.p, args.q)
+		G.preprocess_transition_probs()
+		walks = G.simulate_walks(args.num_walks, args.walk_length)
+		learn_multiple_embeddings(walks)
+
+
+__name__ == "multi_main"
 if __name__ == "__main__":
 	args = parse_args()
 	main(args)
+
+if __name__ == "multi_main":
+	args = parse_args()
+	main_listofGraphs(args)
