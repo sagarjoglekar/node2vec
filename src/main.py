@@ -25,7 +25,7 @@ def parse_args():
 
 	parser.add_argument('--input', nargs='?', default='graph/karate.edgelist',
 	                    help='Input graph path')
-	parser.add_argument('--inputMulti', nargs='?', default='graph/AS_Sampled_ugraph.pkl',
+	parser.add_argument('--inputMulti', nargs='?', default='graph/SW_Sampled_ugraph.pkl',
 	                    help='Input graph path')
 
 	parser.add_argument('--output', nargs='?', default='emb/karate.emb',
@@ -86,6 +86,7 @@ def read_graph():
 def read_graphs(path):
 	if os.path.exists(path):
 		allGraphs = pkl.load(open(path,'rb'))
+		return allGraphs
 	else: 
 		print "File not found"
 		exit()
@@ -125,16 +126,24 @@ def main_listofGraphs(args):
 	Pipeline for representational learning for all nodes in a graph.
 	'''
 	graphPaths = args.inputMulti
+	print "Working with " + graphPaths
+
 	nx_GraphList = read_graphs(graphPaths)
+	print len(nx_GraphList)
 	for k in nx_GraphList:
 		nx_G = nx_GraphList[k]
+		if nx_G.size() < 2:
+			print "Graph too small, bailing"
+			continue
 		G = node2vec.Graph(nx_G, args.directed, args.p, args.q)
 		G.preprocess_transition_probs()
 		walks = G.simulate_walks(args.num_walks, args.walk_length)
-		learn_multiple_embeddings(walks)
+		learn_multiple_embeddings(walks,k)
 
 
-__name__ == "multi_main"
+#naive switch to bypass the single graph code
+__name__ = "multi_main"
+
 if __name__ == "__main__":
 	args = parse_args()
 	main(args)
